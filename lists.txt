@@ -1,2 +1,3 @@
-category-ai-!cn
-category-scholar-!cn
+# Format: <v2fly-list-name> [=> <output-stem>]
+category-ai-!cn => ai
+category-scholar-!cn => scholar

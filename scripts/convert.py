@@ -20,17 +20,23 @@ TYPE_MAP = {
 ORDER = {"DOMAIN-SUFFIX": 0, "DOMAIN": 1, "DOMAIN-KEYWORD": 2}
 
 
-def read_lists() -> list[str]:
-    names: list[str] = []
+def read_lists() -> list[tuple[str, str]]:
+    items: list[tuple[str, str]] = []
     for raw in LISTS_FILE.read_text(encoding="utf-8").splitlines():
         line = raw.split("#", 1)[0].strip()
-        if line:
-            names.append(line)
-    return names
+        if not line:
+            continue
+        if "=>" in line:
+            src_name, out_stem = [p.strip() for p in line.split("=>", 1)]
+        else:
+            src_name = line
+            out_stem = line
+        items.append((src_name, out_stem))
+    return items
 
 
-def convert_one(name: str) -> tuple[int, int]:
-    src = EXPORT_DIR / f"{name.lower()}.txt"
+def convert_one(src_name: str, out_stem: str) -> tuple[int, int]:
+    src = EXPORT_DIR / f"{src_name.lower()}.txt"
     if not src.exists():
         raise FileNotFoundError(f"Missing exported plaintext file: {src}")
 
@@ -41,9 +47,6 @@ def convert_one(name: str) -> tuple[int, int]:
         line = raw.strip()
         if not line:
             continue
-        # Format from v2fly/domain-list-community writePlainList:
-        #   type:value
-        #   type:value:@attr1,@attr2
         first_colon = line.find(":")
         if first_colon == -1:
             raise ValueError(f"Unexpected line in {src}: {line!r}")
@@ -65,15 +68,15 @@ def convert_one(name: str) -> tuple[int, int]:
 
     sorted_rules = sorted(rules, key=lambda item: (ORDER[item[0]], item[1]))
     if not sorted_rules:
-        raise RuntimeError(f"Converted list {name!r} is empty; refusing to write.")
+        raise RuntimeError(f"Converted list {src_name!r} is empty; refusing to write.")
 
     header = [
-        f"# NAME: {name}",
+        f"# NAME: {out_stem} (upstream: {src_name})",
         "# SOURCE: https://github.com/v2fly/domain-list-community",
         f"# TOTAL: {len(sorted_rules)} (skipped regexp: {skipped_regexp})",
         "# COMPAT: Surge RULE-SET / Clash Mihomo classical text / Quantumult X opt-parser",
     ]
-    out_path = RULES_DIR / f"{name}.list"
+    out_path = RULES_DIR / f"{out_stem}.list"
     out_path.write_text(
         "\n".join(header + [f"{t},{v}" for t, v in sorted_rules]) + "\n",
         encoding="utf-8",
@@ -83,13 +86,17 @@ def convert_one(name: str) -> tuple[int, int]:
 
 def main() -> int:
     RULES_DIR.mkdir(parents=True, exist_ok=True)
-    names = read_lists()
-    if not names:
+    items = read_lists()
+    if not items:
         print("lists.txt is empty", file=sys.stderr)
         return 1
-    for name in names:
-        total, skipped = convert_one(name)
-        print(f"Generated rules/{name}.list: {total} rules (skipped regexp: {skipped})")
+    expected_files = {f"{out_stem}.list" for _, out_stem in items}
+    for old in RULES_DIR.glob("*.list"):
+        if old.name not in expected_files:
+            old.unlink()
+    for src_name, out_stem in items:
+        total, skipped = convert_one(src_name, out_stem)
+        print(f"Generated rules/{out_stem}.list (from {src_name}): {total} rules (skipped regexp: {skipped})")
     return 0
 
 

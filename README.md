@@ -4,8 +4,8 @@ Automated daily mirror converting selected categories from [v2fly/domain-list-co
 
 ## Generated Rules
 
-- `rules/category-ai-!cn.list`
-- `rules/category-scholar-!cn.list`
+- `rules/ai.list` (`category-ai-!cn`)
+- `rules/scholar.list` (`category-scholar-!cn`)
 
 ## Upstream & Schedule
 

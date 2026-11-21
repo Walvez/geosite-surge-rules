@@ -24,10 +24,11 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: upstream/go.mod
+          cache: false
 
       - name: Export plaintext lists using official v2fly generator
         run: |
-          LISTS=$(grep -vE '^\s*(#|$)' lists.txt | paste -sd, -)
+          LISTS=$(grep -vE '^\s*(#|$)' lists.txt | sed -E 's/\s*=>.*$//' | paste -sd, -)
           echo "Exporting lists: $LISTS"
           mkdir -p exported
           (cd upstream && go run . --datapath=./data --exportlists="$LISTS" --outputdir=../exported)
@@ -39,7 +40,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add rules/
+          git add -A rules/
           if git diff --cached --quiet; then
             echo "No rule changes."
             exit 0
